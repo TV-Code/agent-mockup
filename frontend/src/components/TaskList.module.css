@@ -1,0 +1,95 @@
+.taskList {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 12px;
+  padding: 1rem;
+  max-height: 100%;
+  overflow-y: auto;
+}
+
+.taskItem {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.taskItem:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
+}
+
+.taskItem.active {
+  background: rgba(42, 159, 255, 0.2);
+  border: 1px solid rgba(42, 159, 255, 0.4);
+}
+
+.taskHeader {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.statusIndicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 0.75rem;
+}
+
+.pending {
+  background: #FFC107;
+}
+
+.processing {
+  background: #2196F3;
+}
+
+.completed {
+  background: #4CAF50;
+}
+
+.taskDescription {
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.taskProgress {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.progressBar {
+  flex: 1;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  margin-right: 0.75rem;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: #2a9fff;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.progressText {
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.7);
+  min-width: 3rem;
+}
+
+.taskMeta {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.taskDate {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.5);
+} 
