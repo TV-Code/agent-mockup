@@ -47,7 +47,7 @@ const CheckCircleIcon = ({ className = "w-5 h-5" }) => (
 
 interface MonitoringCardProps {
   title: string;
-  type: 'status' | 'metrics';
+  type: 'status' | 'analytics';
   tasks: Task[];
 }
 
@@ -58,9 +58,6 @@ export function MonitoringCard({ title, type, tasks }: MonitoringCardProps) {
     const processing = tasks.filter(t => t.status === 'PROCESSING').length;
     const error = tasks.filter(t => t.status === 'ERROR').length;
     
-    // Calculate average completion time (mock data for now)
-    const avgCompletionTime = "2.5 min";
-    
     // Calculate success rate
     const successRate = total ? Math.round((completed / total) * 100) : 0;
     
@@ -69,52 +66,76 @@ export function MonitoringCard({ title, type, tasks }: MonitoringCardProps) {
       .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
       .slice(0, 3);
 
+    // Calculate completion trend data (last 7 days)
+    const now = new Date();
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    
+    const trendData = tasks
+      .filter(t => new Date(t.updatedAt) >= sevenDaysAgo)
+      .reduce((acc, task) => {
+        const date = new Date(task.updatedAt).toLocaleDateString();
+        if (!acc[date]) {
+          acc[date] = { completed: 0, failed: 0 };
+        }
+        if (task.status === 'COMPLETED') {
+          acc[date].completed++;
+        } else if (task.status === 'ERROR') {
+          acc[date].failed++;
+        }
+        return acc;
+      }, {} as Record<string, { completed: number; failed: number }>);
+
+    // Fill in missing days with zeros
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000).toLocaleDateString();
+      if (!trendData[date]) {
+        trendData[date] = { completed: 0, failed: 0 };
+      }
+    }
+
+    // Sort by date and get last 7 days
+    const trendPoints = Object.entries(trendData)
+      .sort((a, b) => new Date(a[0]).getTime() - new Date(b[0]).getTime())
+      .slice(-7)
+      .map(([date, data]) => ({
+        date: new Date(date).toLocaleDateString('en-US', { weekday: 'short' }),
+        completed: data.completed,
+        failed: data.failed
+      }));
+
     return {
       total,
       completed,
       processing,
       error,
       successRate,
-      avgCompletionTime,
       recentTasks,
+      trendPoints,
       activeTasksData: tasks
         .filter(t => t.status === 'PROCESSING')
+        .slice(0, 2)
         .map(t => ({
           id: t.id,
           progress: Math.min(100, Math.round(t.progress)),
-          timeRemaining: "~1 min", // Mock data for now
           name: t.name || t.description || `Task ${t.id.slice(0, 8)}`
         }))
     };
   }, [tasks]);
 
   return (
-    <motion.div
-      className="relative h-full"
-    >
-      {/* Static Background */}
-      <div
-        className="absolute inset-0 opacity-100 rounded-2xl overflow-hidden"
-        style={{
-          background: 'radial-gradient(circle at 50% 50%, rgba(255, 160, 122, 0.03), transparent 50%)'
-        }}
-      />
-
-      {/* Card Content */}
+    <div className="relative h-full">
       <motion.div 
         className="relative h-full rounded-2xl border-[0.5px] border-[rgb(255,160,122)]/10 shadow-premium flex flex-col overflow-hidden"
         style={{
-          background: 'linear-gradient(to bottom, rgba(255, 160, 122, 0.01), rgba(255, 160, 122, 0.02))',
+          background: 'rgba(28, 28, 28, 0.4)',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
         }}
       >
-        {/* Accent Border */}
-        <div
-          className="absolute inset-0 rounded-2xl"
+        <div className="absolute inset-0 rounded-2xl"
           style={{
             padding: '1px',
-            background: 'linear-gradient(to bottom right, rgba(255, 160, 122, 0.1), rgba(255, 160, 122, 0))',
+            background: 'rgba(255, 160, 122, 0.05)',
             WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
             mask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
             WebkitMaskComposite: 'xor',
@@ -136,39 +157,39 @@ export function MonitoringCard({ title, type, tasks }: MonitoringCardProps) {
               {/* Quick Stats */}
               <div className="grid grid-cols-2 gap-2">
                 <StatusItem
-                  label="In Progress"
+                  label="Active Tasks"
                   value={stats.processing}
                   subtext={stats.processing === 1 ? 'task' : 'tasks'}
                   icon={ClockIcon}
                   color="text-[rgb(255,160,122)]/90"
-                  trend="default"
+                  trend="processing"
                 />
                 <StatusItem
-                  label="Success Rate"
-                  value={stats.successRate}
-                  subtext="%"
+                  label="Total Tasks"
+                  value={stats.total}
+                  subtext="tasks"
                   icon={CheckCircleIcon}
                   color="text-[rgb(255,160,122)]/90"
                   trend="default"
                 />
               </div>
 
-              {/* Active Tasks */}
-              {stats.activeTasksData.length > 0 && (
-                <div className="space-y-2">
-                  <h3 className="text-[13px] font-medium text-white/50">Active Tasks</h3>
-                  <div className="space-y-1.5 max-h-[20vh] overflow-y-auto">
-                    {stats.activeTasksData.map(task => (
+              {/* Active Tasks - Always show space for 2 */}
+              <div className="space-y-2">
+                <h3 className="text-[13px] font-medium text-white/50">Active Tasks</h3>
+                <div className="space-y-1.5 min-h-[104px]">
+                  {stats.activeTasksData.length > 0 ? (
+                    stats.activeTasksData.slice(0, 2).map(task => (
                       <div 
                         key={task.id} 
                         className="rounded-lg p-2 border-[0.5px] border-[rgb(255,160,122)]/20 backdrop-blur-xl"
                         style={{
-                          background: 'linear-gradient(to bottom, rgba(255, 160, 122, 0.02), rgba(255, 160, 122, 0.01))',
+                          background: 'rgba(255, 160, 122, 0.01)',
                         }}
                       >
                         <div className="flex justify-between items-start mb-1.5">
                           <span className="text-[13px] text-white/70 truncate flex-1">{task.name}</span>
-                          <span className="text-[11px] text-[rgb(255,160,122)]/70 ml-2 whitespace-nowrap">{task.timeRemaining}</span>
+                          <span className="text-[11px] text-[rgb(255,160,122)]/70 ml-2">{task.progress}%</span>
                         </div>
                         <div className="h-[3px] bg-white/[0.03] rounded-full overflow-hidden">
                           <motion.div
@@ -182,21 +203,28 @@ export function MonitoringCard({ title, type, tasks }: MonitoringCardProps) {
                           />
                         </div>
                       </div>
-                    ))}
-                  </div>
+                    ))
+                  ) : (
+                    <div className="h-[104px] flex items-center justify-center text-[13px] text-white/30 border-[0.5px] border-[rgb(255,160,122)]/10 rounded-lg backdrop-blur-xl"
+                      style={{
+                        background: 'rgba(255, 160, 122, 0.01)',
+                      }}>
+                      No active tasks
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
 
               {/* Recent Activity */}
               <div className="space-y-2">
                 <h3 className="text-[13px] font-medium text-white/50">Recent Activity</h3>
-                <div className="space-y-1.5 max-h-[20vh] overflow-y-auto">
+                <div className="space-y-1.5">
                   {stats.recentTasks.map(task => (
                     <div 
                       key={task.id} 
                       className="flex items-center justify-between p-1.5 rounded-lg text-[13px] border-[0.5px] border-[rgb(255,160,122)]/[0.05] backdrop-blur-xl"
                       style={{
-                        background: 'linear-gradient(to bottom, rgba(255, 160, 122, 0.01), rgba(255, 160, 122, 0.02))',
+                        background: 'rgba(255, 160, 122, 0.01)',
                       }}
                     >
                       <span className="text-white/70 truncate flex-1">
@@ -217,78 +245,64 @@ export function MonitoringCard({ title, type, tasks }: MonitoringCardProps) {
               </div>
             </div>
           ) : (
-            <div className="space-y-3">
-              {/* Performance Overview */}
-              <div className="grid grid-cols-2 gap-2">
-                <MetricItem
-                  label="Avg. Completion"
-                  value={stats.avgCompletionTime}
-                  change="per task"
-                  trend="processing"
-                />
-                <MetricItem
-                  label="Success Rate"
-                  value={`${stats.successRate}%`}
-                  change={`${stats.completed} completed`}
-                  trend={stats.successRate > 80 ? 'completed' : 'pending'}
-                />
+            <div className="h-[120px] relative">
+              {/* Simplified background */}
+              <div className="absolute inset-0 opacity-30"
+                style={{
+                  background: 'rgba(255, 160, 122, 0.02)'
+                }}
+              />
+              
+              {/* Grid Lines */}
+              <div className="absolute inset-0 flex flex-col justify-between">
+                {[...Array(3)].map((_, i) => (
+                  <div 
+                    key={i} 
+                    className="w-full border-t border-[rgb(255,160,122)]/[0.02]"
+                  />
+                ))}
               </div>
-
-              {/* Task Distribution */}
-              <div className="space-y-2">
-                <h3 className="text-[13px] font-medium text-white/50">Task Distribution</h3>
-                <div className="grid grid-cols-4 gap-1.5 h-20">
-                  <div className="rounded-lg relative overflow-hidden border-[0.5px] border-[rgb(255,160,122)]/20 backdrop-blur-xl"
-                    style={{
-                      background: 'linear-gradient(to bottom, rgba(255, 160, 122, 0.02), rgba(255, 160, 122, 0.01))',
-                    }}>
-                    <div className="absolute inset-x-0 bottom-0 bg-[rgb(255,160,122)]/10" 
-                      style={{ height: `${(stats.completed / stats.total) * 100}%` }} />
-                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-1.5">
-                      <span className="text-[11px] text-[rgb(255,160,122)]/70">Completed</span>
-                      <span className="text-[13px] font-medium text-[rgb(255,160,122)]">{stats.completed}</span>
+              
+              {/* Graph */}
+              <div className="absolute inset-x-0 bottom-0 flex items-end justify-between px-2 pb-4">
+                {stats.trendPoints.map((point, i) => (
+                  <div key={i} className="relative group">
+                    {/* Hover Effect */}
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                      <div className="text-[10px] text-white/70 whitespace-nowrap bg-[rgb(255,160,122)]/10 px-1.5 py-0.5 rounded backdrop-blur-sm border-[0.5px] border-[rgb(255,160,122)]/20">
+                        {point.completed} tasks
+                      </div>
                     </div>
-                  </div>
-                  <div className="rounded-lg relative overflow-hidden border-white/20 backdrop-blur-xl"
-                    style={{
-                      background: 'linear-gradient(to bottom, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01))',
-                    }}>
-                    <div className="absolute inset-x-0 bottom-0 bg-white/10" 
-                      style={{ height: `${(stats.processing / stats.total) * 100}%` }} />
-                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-1.5">
-                      <span className="text-[11px] text-white/70">Active</span>
-                      <span className="text-[13px] font-medium text-white">{stats.processing}</span>
+                    
+                    {/* Bar */}
+                    <div className="relative">
+                      <div 
+                        className="w-1.5 rounded-full transition-all duration-500 ease-out"
+                        style={{ 
+                          height: `${point.completed ? Math.max(15, (point.completed / Math.max(...stats.trendPoints.map(p => p.completed))) * 70) : 0}px`,
+                          background: 'linear-gradient(180deg, rgba(255, 160, 122, 0.3) 0%, rgba(255, 160, 122, 0.1) 100%)',
+                        }}
+                      />
+                      {/* Glow Effect */}
+                      <div 
+                        className="absolute inset-0 blur-sm opacity-50"
+                        style={{ 
+                          height: `${point.completed ? Math.max(15, (point.completed / Math.max(...stats.trendPoints.map(p => p.completed))) * 70) : 0}px`,
+                          background: 'linear-gradient(180deg, rgba(255, 160, 122, 0.2) 0%, transparent 100%)',
+                        }}
+                      />
                     </div>
+                    
+                    {/* Day Label */}
+                    <div className="mt-2 text-[10px] text-white/30">{point.date}</div>
                   </div>
-                  <div className="rounded-lg relative overflow-hidden border-[0.5px] border-[rgb(255,86,86)]/20 backdrop-blur-xl"
-                    style={{
-                      background: 'linear-gradient(to bottom, rgba(255, 86, 86, 0.02), rgba(255, 86, 86, 0.01))',
-                    }}>
-                    <div className="absolute inset-x-0 bottom-0 bg-[rgb(255,86,86)]/10" 
-                      style={{ height: `${(stats.error / stats.total) * 100}%` }} />
-                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-1.5">
-                      <span className="text-[11px] text-[rgb(255,86,86)]/70">Failed</span>
-                      <span className="text-[13px] font-medium text-[rgb(255,86,86)]">{stats.error}</span>
-                    </div>
-                  </div>
-                  <div className="rounded-lg relative overflow-hidden border-white/[0.05] backdrop-blur-xl"
-                    style={{
-                      background: 'linear-gradient(to bottom, rgba(255, 255, 255, 0.01), rgba(255, 255, 255, 0.02))',
-                    }}>
-                    <div className="absolute inset-x-0 bottom-0 bg-white/[0.03]" 
-                      style={{ height: '100%' }} />
-                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-1.5">
-                      <span className="text-[11px] text-white/40">Total</span>
-                      <span className="text-[13px] font-medium text-white/70">{stats.total}</span>
-                    </div>
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
           )}
         </div>
       </motion.div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -314,11 +328,11 @@ function StatusItem({ label, value, subtext, icon: Icon, color, trend }: StatusI
 
   const getBackground = () => {
     switch (trend) {
-      case 'completed': return 'linear-gradient(to bottom, rgba(255, 160, 122, 0.02), rgba(255, 160, 122, 0.01))';
-      case 'processing': return 'linear-gradient(to bottom, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01))';
-      case 'error': return 'linear-gradient(to bottom, rgba(255, 86, 86, 0.02), rgba(255, 86, 86, 0.01))';
-      case 'pending': return 'linear-gradient(to bottom, rgba(255, 196, 0, 0.02), rgba(255, 196, 0, 0.01))';
-      default: return 'linear-gradient(to bottom, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01))';
+      case 'completed': return 'rgba(255, 160, 122, 0.02)';
+      case 'processing': return 'rgba(255, 255, 255, 0.02)';
+      case 'error': return 'rgba(255, 86, 86, 0.02)';
+      case 'pending': return 'rgba(255, 196, 0, 0.02)';
+      default: return 'rgba(255, 255, 255, 0.02)';
     }
   };
 
@@ -344,17 +358,15 @@ function StatusItem({ label, value, subtext, icon: Icon, color, trend }: StatusI
 interface MetricItemProps {
   label: string;
   value: string | number;
-  change: string;
+  subtext: string;
   trend: 'completed' | 'processing' | 'error' | 'pending' | 'default';
 }
 
-function MetricItem({ label, value, change, trend }: MetricItemProps) {
+function MetricItem({ label, value, subtext, trend }: MetricItemProps) {
   const getBorderColor = () => {
     switch (trend) {
       case 'completed': return 'border-[rgb(255,160,122)]/20';
-      case 'processing': return 'border-white/20';
       case 'error': return 'border-[rgb(255,86,86)]/20';
-      case 'pending': return 'border-[rgb(255,196,0)]/20';
       default: return 'border-white/20';
     }
   };
@@ -362,9 +374,7 @@ function MetricItem({ label, value, change, trend }: MetricItemProps) {
   const getBackground = () => {
     switch (trend) {
       case 'completed': return 'linear-gradient(to bottom, rgba(255, 160, 122, 0.02), rgba(255, 160, 122, 0.01))';
-      case 'processing': return 'linear-gradient(to bottom, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01))';
       case 'error': return 'linear-gradient(to bottom, rgba(255, 86, 86, 0.02), rgba(255, 86, 86, 0.01))';
-      case 'pending': return 'linear-gradient(to bottom, rgba(255, 196, 0, 0.02), rgba(255, 196, 0, 0.01))';
       default: return 'linear-gradient(to bottom, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01))';
     }
   };
@@ -378,9 +388,7 @@ function MetricItem({ label, value, change, trend }: MetricItemProps) {
     >
       <div className="text-[13px] text-white/50 mb-0.5">{label}</div>
       <div className="text-lg font-medium text-white/80">{value}</div>
-      <div className="text-[11px] text-white/30">
-        {change}
-      </div>
+      <div className="text-[11px] text-white/30">{subtext}</div>
     </div>
   );
 } 

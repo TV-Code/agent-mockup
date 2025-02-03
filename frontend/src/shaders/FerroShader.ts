@@ -71,37 +71,113 @@ uniform float uTime;
 uniform float uDistortion;
 uniform float uActivity;
 uniform float uProgress;
+uniform float uThinkingState;
 
 varying vec2 vUv;
 varying vec3 vNormal;
 varying vec3 vPosition;
+
+// Fluid wave function
+vec3 fluidWave(vec3 pos, float time, float magnitude) {
+    float wave1 = sin(pos.y * 4.0 + time * 1.2) * cos(pos.z * 4.0 + time * 0.8);
+    float wave2 = sin(pos.z * 3.0 - time * 0.9) * cos(pos.x * 3.0 + time * 1.1);
+    float wave3 = sin(pos.x * 3.5 + time * 1.0) * cos(pos.y * 3.5 - time * 0.9);
+    
+    // Add secondary waves for more complexity
+    float secondary1 = sin(pos.x * 6.0 + time * 0.7) * cos(pos.y * 6.0 - time * 0.5);
+    float secondary2 = sin(pos.z * 5.0 - time * 0.6) * cos(pos.x * 5.0 + time * 0.4);
+    
+    return vec3(
+        (wave1 + secondary1 * 0.3) * magnitude,
+        (wave2 + secondary2 * 0.3) * magnitude,
+        (wave3 + secondary1 * secondary2 * 0.3) * magnitude
+    );
+}
 
 void main() {
   vUv = uv;
   vNormal = normalize(normalMatrix * normal);
   vPosition = position;
   
-  // Multi-layer noise generation
-  float macroNoise = snoise(position * 3.0 + uTime * 0.2);
-  float microNoise = snoise(position * 20.0 + uTime) * 0.02;
+  // Multi-layer noise for organic movement
+  float macroNoise = snoise(position * 3.0 + uTime * 0.1);
+  float microNoise = snoise(position * 20.0 + uTime * 0.5) * 0.02;
   
-  // Magnetic field distortion
+  // Base position with organic movement
+  vec3 pos = position + normal * (macroNoise * uDistortion * 0.3 + microNoise * uActivity);
+  
+  // Thinking state transformation
+  if (uThinkingState > 0.0) {
+    // Scale down slightly in thinking state
+    float scale = 1.0 - (uThinkingState * 0.04);
+    pos *= scale;
+    
+    // Create dynamic fluid motion
+    vec3 fluidMotion = fluidWave(position, uTime, 0.15);
+    
+    // Split into fluid streams that orbit center
+    float angle = uTime * 0.4; // Slower rotation
+    float wobble = sin(uTime * 1.0) * 0.2; // Slower wobble
+    mat3 orbitMatrix = mat3(
+      cos(angle), wobble * sin(uTime * 1.5), sin(angle),
+      -wobble * sin(uTime * 1.5), 1.0, wobble * cos(uTime * 1.5),
+      -sin(angle), -wobble * cos(uTime * 1.5), cos(angle)
+    );
+    
+    // Create two orbiting centers with dynamic radius
+    float radiusPulse = 1.0 + sin(uTime * 0.8) * 0.1;
+    vec3 center1 = orbitMatrix * vec3(0.25 * radiusPulse, 0.0, 0.0);
+    vec3 center2 = -center1;
+    
+    // Calculate influence from each center
+    float dist1 = length(pos - center1);
+    float dist2 = length(pos - center2);
+    float influence1 = smoothstep(0.8, 0.0, dist1);
+    float influence2 = smoothstep(0.8, 0.0, dist2);
+    
+    // Create stretching effect between centers with added complexity
+    vec3 stretch = normalize(center2 - center1) * 
+                  (sin(uTime * 1.5) * 0.1 + sin(uTime * 2.5) * 0.02);
+    
+    // Add spiraling effect
+    float spiral = sin(atan(pos.y, pos.x) * 4.0 + uTime * 1.0) * 0.05;
+    
+    // Combine all transformations
+    vec3 newPos = pos;
+    newPos += fluidMotion * uThinkingState;
+    newPos += (normalize(pos - center1) * influence1 + normalize(pos - center2) * influence2) * 0.2 * uThinkingState;
+    newPos += stretch * sin(length(pos) * 10.0 + uTime * 1.0) * uThinkingState;
+    newPos += normal * spiral * uThinkingState;
+    
+    // Enhanced surface detail during thinking
+    float thinkingDetail = snoise(pos * 8.0 + uTime * 0.25) * 0.05;
+    newPos += normal * thinkingDetail * uThinkingState;
+    
+    // Ensure we stay within bounds
+    float maxLength = scale * 1.1;
+    if (length(newPos) > maxLength) {
+        newPos = normalize(newPos) * maxLength;
+    }
+    
+    // Smooth transition
+    pos = mix(pos, newPos, uThinkingState);
+  }
+  
+  // Enhanced magnetic field distortion
   vec3 fieldDistortion = vec3(
-    snoise(position * 5.0 + uTime * 0.3),
-    snoise(position * 5.0 + uTime * 0.3 + 100.0),
-    snoise(position * 5.0 + uTime * 0.3 + 200.0)
+    snoise(pos * 5.0 + uTime * 0.15),
+    snoise(pos * 5.0 + uTime * 0.15 + 100.0),
+    snoise(pos * 5.0 + uTime * 0.15 + 200.0)
   ) * uDistortion * 0.15;
   
-  // Vertex displacement calculation
-  vec3 displaced = position + 
-    normal * (macroNoise * uDistortion * 0.3 + microNoise * uActivity) +
-    fieldDistortion;
+  // Combine all displacements
+  vec3 finalPos = pos + fieldDistortion;
   
   // System pulse animation
-  float systemPulse = sin(uTime * 2.0) * 0.005 * uActivity;
-  displaced *= 1.0 + systemPulse + uProgress * 0.01;
+  float systemPulse = sin(uTime * 1.0) * 0.005 * uActivity;
+  finalPos *= 1.0 + systemPulse + uProgress * 0.01;
 
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(finalPos, 1.0);
 }
 `;
 
@@ -110,38 +186,64 @@ uniform float uTime;
 uniform vec3 uColor;
 uniform float uActivity;
 uniform float uProgress;
+uniform float uThinkingState;
 
 varying vec2 vUv;
 varying vec3 vNormal;
 varying vec3 vPosition;
 
 void main() {
-  // Surface flow pattern
+  // Enhanced surface flow pattern
   float surfaceFlow = sin(vPosition.x * 30.0 + uTime) * 
                      cos(vPosition.y * 30.0 + uTime) *
                      sin(vPosition.z * 30.0 + uTime);
   surfaceFlow = smoothstep(-0.5, 0.5, surfaceFlow);
   
-  // Base metallic color
+  // Dynamic flow during thinking state
+  if (uThinkingState > 0.0) {
+    float thinkingFlow = sin(vPosition.x * 20.0 + uTime * 2.0) * 
+                        cos(vPosition.y * 20.0 - uTime * 1.5) *
+                        sin(vPosition.z * 20.0 + uTime * 1.8);
+    surfaceFlow = mix(surfaceFlow, thinkingFlow, uThinkingState);
+  }
+  
+  // Base metallic color with enhanced thinking state
   vec3 baseColor = mix(
-    uColor * 0.7,       // Dark areas
-    uColor * 1.2,       // Bright areas
-    surfaceFlow * uActivity
+    uColor * 0.7,
+    uColor * 1.2,
+    surfaceFlow * (uActivity + uThinkingState * 0.5)
   );
   
   // Energy core effect
   float energyCore = smoothstep(0.3, 0.8, 
     sin(length(vPosition) * 15.0 - uTime * 2.0)
   );
-  vec3 finalColor = mix(baseColor, vec3(1.0), energyCore * 0.3);
-
-  // Magnetic field lines
-  float fieldLines = step(0.9, fract(vPosition.y * 10.0 + uTime));
-  finalColor += fieldLines * vec3(0.9, 1.0, 1.0) * uActivity;
   
-  // Advanced alpha control
-  float fresnel = pow(1.0 - dot(normalize(cameraPosition - vPosition), vNormal), 5.0);
-  float alpha = mix(0.8, 0.95, energyCore);
+  // Enhanced magnetic field lines with thinking state variation
+  float fieldLines = step(0.97, fract(vPosition.y * 10.0 + uTime));
+  if (uThinkingState > 0.0) {
+    float thinkingLines = step(0.95, 
+      fract(
+        sin(vPosition.x * 15.0 + uTime * 1.5) * 
+        cos(vPosition.y * 15.0 - uTime) * 
+        sin(vPosition.z * 15.0 + uTime * 2.0)
+      )
+    );
+    fieldLines = mix(fieldLines, thinkingLines, uThinkingState);
+  }
+  
+  // Combine all effects
+  vec3 finalColor = baseColor;
+  finalColor += uColor * energyCore * 0.3;
+  finalColor += uColor * fieldLines * (uActivity + uThinkingState) * 0.3;
+  
+  // Enhanced fresnel effect
+  vec3 viewDir = normalize(cameraPosition - vPosition);
+  float fresnel = pow(1.0 - dot(viewDir, vNormal), 3.0);
+  finalColor += uColor * fresnel * 0.3;
+  
+  // Advanced alpha control with thinking state enhancement
+  float alpha = mix(0.8, 0.95, energyCore + uThinkingState * 0.1);
   alpha *= 1.0 - smoothstep(0.7, 1.0, fresnel);
 
   gl_FragColor = vec4(finalColor, alpha);

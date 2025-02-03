@@ -5,6 +5,19 @@ import { Visualization } from './components/Visualization';
 import { Layout } from './components/Layout';
 import './App.css';
 
+interface Message {
+  id: string;
+  text: string;
+  type: 'user' | 'system';
+  timestamp: Date;
+  isStreaming?: boolean;
+  steps?: {
+    title: string;
+    status: 'completed' | 'in-progress' | 'pending';
+    timeEstimate?: string;
+  }[];
+}
+
 // Initial task for demonstration
 const initialTask: Task = {
   id: '1',
@@ -20,6 +33,7 @@ function App() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [pendingTask, setPendingTask] = useState<Task | null>(null);
+  const [messagesMap, setMessagesMap] = useState<Record<string, Message[]>>({});
 
   // Load initial tasks from the server
   useEffect(() => {
@@ -96,6 +110,23 @@ function App() {
   };
 
   const handleTaskSelect = (taskId: string) => {
+    // If switching away from a pending task that hasn't been started, remove it
+    if (pendingTask && activeTaskId === pendingTask.id && !messagesMap[pendingTask.id]) {
+      setPendingTask(null);
+    }
+    
+    // If switching to an empty string (task removal) and we have other tasks,
+    // select the most recent non-pending task
+    if (!taskId) {
+      const nonPendingTasks = tasks.filter(t => !t.id.startsWith('pending-'));
+      if (nonPendingTasks.length > 0) {
+        setActiveTaskId(nonPendingTasks[nonPendingTasks.length - 1].id);
+      } else {
+        setActiveTaskId(null);
+      }
+      return;
+    }
+
     setActiveTaskId(taskId);
   };
 
@@ -122,10 +153,81 @@ function App() {
       setTasks(prev => [...prev, newTask]);
       setPendingTask(null);
       setActiveTaskId(newTask.id);
+
+      // Create initial message
+      const initialUserMessage: Message = {
+        id: Date.now().toString(),
+        text: initialMessage,
+        type: 'user',
+        timestamp: new Date()
+      };
+
+      // Add initial message and simulate AI response
+      setMessagesMap(prev => ({
+        ...prev,
+        [newTask.id]: [initialUserMessage]
+      }));
+
+      // Simulate AI response
+      setTimeout(() => {
+        const aiResponse: Message = {
+          id: (Date.now() + 1).toString(),
+          text: "I'll help you with that. Let me break this down into steps...",
+          type: 'system',
+          timestamp: new Date(),
+          isStreaming: true,
+          steps: [
+            { title: "Analyzing request", status: 'completed' },
+            { title: "Planning execution steps", status: 'completed' },
+            { title: "Executing planned actions", status: 'in-progress', timeEstimate: "~2 min" },
+            { title: "Reviewing results", status: 'pending' }
+          ]
+        };
+
+        setMessagesMap(prev => ({
+          ...prev,
+          [newTask.id]: [...prev[newTask.id], aiResponse]
+        }));
+      }, 500);
     } catch (error) {
       console.error('Error creating task:', error);
-      // Handle error - maybe show a notification to the user
     }
+  };
+
+  const handleSendMessage = (taskId: string, message: string) => {
+    const newMessage: Message = {
+      id: Date.now().toString(),
+      text: message,
+      type: 'user',
+      timestamp: new Date()
+    };
+
+    setMessagesMap(prev => ({
+      ...prev,
+      [taskId]: [...(prev[taskId] || []), newMessage]
+    }));
+
+    // Simulate AI response
+    setTimeout(() => {
+      const aiResponse: Message = {
+        id: (Date.now() + 1).toString(),
+        text: "I'll help you with that. Let me break this down into steps...",
+        type: 'system',
+        timestamp: new Date(),
+        isStreaming: true,
+        steps: [
+          { title: "Analyzing request", status: 'completed' },
+          { title: "Planning execution steps", status: 'completed' },
+          { title: "Executing planned actions", status: 'in-progress', timeEstimate: "~2 min" },
+          { title: "Reviewing results", status: 'pending' }
+        ]
+      };
+
+      setMessagesMap(prev => ({
+        ...prev,
+        [taskId]: [...(prev[taskId] || []), aiResponse]
+      }));
+    }, 500);
   };
 
   // Combine real tasks with pending task for UI
@@ -140,6 +242,8 @@ function App() {
       onAddTask={handleAddTask}
       onTaskSelect={handleTaskSelect}
       onTaskStart={handleTaskStart}
+      messagesMap={messagesMap}
+      onSendMessage={handleSendMessage}
     />
   );
 }

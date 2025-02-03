@@ -28,8 +28,8 @@
     inset: 0;
     background: linear-gradient(
       135deg,
-      rgba(255, 255, 255, 0.1),
-      rgba(255, 255, 255, 0.05)
+      rgba(255, 255, 255, 0.12),
+      rgba(255, 255, 255, 0.06)
     );
     border-radius: inherit;
     z-index: -1;
@@ -56,6 +56,14 @@
     @apply bg-glass/40;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   }
+
+  .glass-active::before {
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.15),
+      rgba(255, 255, 255, 0.08)
+    );
+  }
 }
 
 @layer utilities {
@@ -65,5 +73,20 @@
   }
   .hide-scrollbar::-webkit-scrollbar {
     display: none;
+  }
+
+  .shadow-glow {
+    box-shadow: 0 0 12px var(--tw-shadow-color);
+  }
+
+  .shadow-premium {
+    box-shadow: 
+      0 8px 24px rgba(0, 0, 0, 0.2),
+      0 2px 4px rgba(0, 0, 0, 0.1),
+      0 0 1px rgba(255, 255, 255, 0.1);
+  }
+
+  .text-shadow {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   }
 }

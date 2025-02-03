@@ -6,6 +6,7 @@ import { TaskTabs } from './TaskTabs';
 import { InteractionCard } from './InteractionCard';
 import { MonitoringCard } from './MonitoringCard';
 import { Task } from '../types/task';
+import { Message } from '../types/message';
 
 interface LayoutProps {
   tasks: Task[];
@@ -13,9 +14,19 @@ interface LayoutProps {
   onAddTask: () => void;
   onTaskSelect: (taskId: string) => void;
   onTaskStart: (taskId: string, initialMessage: string) => void;
+  messagesMap: Record<string, Message[]>;
+  onSendMessage: (taskId: string, message: string) => void;
 }
 
-export function Layout({ tasks, activeTaskId, onAddTask, onTaskSelect, onTaskStart }: LayoutProps) {
+export function Layout({ 
+  tasks, 
+  activeTaskId, 
+  onAddTask, 
+  onTaskSelect, 
+  onTaskStart,
+  messagesMap,
+  onSendMessage 
+}: LayoutProps) {
   const backgroundRef = useRef<HTMLDivElement>(null);
   const controls = useAnimation();
 
@@ -76,6 +87,8 @@ export function Layout({ tasks, activeTaskId, onAddTask, onTaskSelect, onTaskSta
                 activeTaskId={activeTaskId} 
                 tasks={tasks}
                 onTaskStart={onTaskStart}
+                messagesMap={messagesMap}
+                onSendMessage={onSendMessage}
               />
             </div>
           </motion.div>
@@ -87,7 +100,7 @@ export function Layout({ tasks, activeTaskId, onAddTask, onTaskSelect, onTaskSta
             className="col-span-4 relative"
             transition={{ duration: 0.2 }}
           >
-            <div className="absolute inset-0 rounded-2xl overflow-hidden bg-surface-200 shadow-premium">
+            <div className="absolute inset-0 rounded-2xl overflow-hidden bg-surface-200 shadow-premium ferro-core">
               <Canvas camera={{ position: [0, 0, 4] }}>
                 <FerroCore tasks={tasks} activeTaskId={activeTaskId} />
               </Canvas>
@@ -115,8 +128,8 @@ export function Layout({ tasks, activeTaskId, onAddTask, onTaskSelect, onTaskSta
               className="flex-1"
             >
               <MonitoringCard
-                title="Performance Metrics"
-                type="metrics"
+                title="Activity"
+                type="analytics"
                 tasks={tasks}
               />
             </motion.div>

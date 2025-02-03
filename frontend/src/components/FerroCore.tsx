@@ -11,10 +11,10 @@ import { EffectComposer, Bloom, Noise } from '@react-three/postprocessing';
 const FerroMaterial = shaderMaterial(
   {
     uTime: 0,
-    uColor: new THREE.Color(0x000000),
+    uColor: new THREE.Color('#ffa07a'),
     uActivity: 0,
-    uProgress: 0,
     uDistortion: 0,
+    uThinkingState: 0
   },
   vertexShader,
   fragmentShader
@@ -32,40 +32,50 @@ export function FerroCore({ tasks, activeTaskId }: FerroCoreProps) {
   const meshRef = useRef<THREE.Mesh>(null);
   const materialRef = useRef<any>(null);
   const groupRef = useRef<THREE.Group>(null);
+  const thinkingRef = useRef(0);
 
   // Calculate system metrics
   const metrics = useMemo(() => {
     const totalTasks = tasks.length;
-    if (totalTasks === 0) return { progress: 0, activity: 0, distortion: 0 };
+    if (totalTasks === 0) return { progress: 0, activity: 0, distortion: 0, isThinking: false };
 
     const completedTasks = tasks.filter(t => t.status === 'COMPLETED').length;
     const processingTasks = tasks.filter(t => t.status === 'PROCESSING').length;
+    const activeTask = tasks.find(t => t.id === activeTaskId);
+    
+    const isThinking = activeTask?.status === 'PROCESSING';
     
     return {
       progress: completedTasks / totalTasks,
       activity: processingTasks / totalTasks,
       distortion: (processingTasks * 0.7 + completedTasks * 0.3) / totalTasks,
+      isThinking,
     };
-  }, [tasks]);
+  }, [tasks, activeTaskId]);
 
-  // Dynamic color system
-  const color = useMemo(() => {
-    return new THREE.Color('#ffa07a');
-  }, []);
+  // Base color - never changes
+  const color = useMemo(() => new THREE.Color('#ffa07a'), []);
 
   // Animation loop
   useFrame((state) => {
     const time = state.clock.getElapsedTime();
-
+  
     if (materialRef.current) {
       materialRef.current.uTime = time;
       materialRef.current.uColor = color;
       materialRef.current.uActivity = metrics.activity;
       materialRef.current.uProgress = metrics.progress;
+      
+      // Smooth thinking state transition
+      thinkingRef.current += (metrics.isThinking ? 1 : -1) * 0.05;
+      thinkingRef.current = Math.max(0, Math.min(1, thinkingRef.current));
+      
+      materialRef.current.uThinkingState = thinkingRef.current;
       materialRef.current.uDistortion = metrics.distortion;
     }
-
+  
     if (groupRef.current) {
+      // Base rotation
       groupRef.current.rotation.y += 0.001 + metrics.activity * 0.002;
     }
   });

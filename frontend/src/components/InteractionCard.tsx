@@ -4,11 +4,14 @@ import styles from './InteractionCard.module.css';
 import clsx from 'clsx';
 import { Task } from '../types/task';
 import { ChatBubbleLeftIcon, XMarkIcon, PaperAirplaneIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
+import { SparkAnimation } from './SparkAnimation';
 
 interface InteractionCardProps {
   activeTaskId: string | null;
   tasks: Task[];
   onTaskStart?: (taskId: string, initialMessage: string) => void;
+  messagesMap: Record<string, Message[]>;
+  onSendMessage: (taskId: string, message: string) => void;
 }
 
 interface Message {
@@ -31,63 +34,61 @@ const mockSteps = [
   { title: "Reviewing results", status: 'pending' as const }
 ];
 
-export function InteractionCard({ activeTaskId, tasks, onTaskStart }: InteractionCardProps) {
+export function InteractionCard({ 
+  activeTaskId, 
+  tasks, 
+  onTaskStart,
+  messagesMap,
+  onSendMessage 
+}: InteractionCardProps) {
   const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [isStreaming, setIsStreaming] = useState(false);
+  const [showSparkAnimation, setShowSparkAnimation] = useState(false);
+  const [sparkCoords, setSparkCoords] = useState({ startX: 0, startY: 0, endX: 0, endY: 0 });
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const sendButtonRef = useRef<HTMLButtonElement>(null);
   
   const activeTask = tasks.find(t => t.id === activeTaskId);
   const isActive = activeTaskId !== null;
   const isPending = activeTaskId?.startsWith('pending-');
+  
+  const currentMessages = activeTaskId ? messagesMap[activeTaskId] || [] : [];
 
-  // Simulate streaming effect
   useEffect(() => {
-    if (isStreaming) {
-      const timer = setTimeout(() => {
-        setIsStreaming(false);
-        setMessages(prev => prev.map(msg => 
-          msg.isStreaming ? { ...msg, isStreaming: false } : msg
-        ));
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [isStreaming]);
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [currentMessages]);
 
   const handleSendMessage = () => {
-    if (!message.trim() || !activeTask) return;
+    if (!message.trim() || !activeTask || !activeTaskId) return;
     
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      text: message,
-      type: 'user',
-      timestamp: new Date()
-    };
-    
-    // If this is a pending task and it's the first message, start the actual task
-    if (isPending && messages.length === 0) {
-      onTaskStart?.(activeTask.id, message);
+    // Get coordinates for the animation
+    if (sendButtonRef.current) {
+      const sendButtonRect = sendButtonRef.current.getBoundingClientRect();
+      const ferroCore = document.querySelector('.ferro-core');
+      if (ferroCore) {
+        const ferroCoreRect = ferroCore.getBoundingClientRect();
+        setSparkCoords({
+          startX: sendButtonRect.left + sendButtonRect.width / 2,
+          startY: sendButtonRect.top + sendButtonRect.height / 2,
+          endX: ferroCoreRect.left + ferroCoreRect.width / 2,
+          endY: ferroCoreRect.top + ferroCoreRect.height / 2
+        });
+        setShowSparkAnimation(true);
+      }
     }
     
-    setMessages(prev => [...prev, newMessage]);
+    // If this is a pending task and it's the first message, start the actual task
+    if (isPending && (!messagesMap[activeTaskId] || messagesMap[activeTaskId].length === 0)) {
+      onTaskStart?.(activeTask.id, message);
+    } else {
+      onSendMessage(activeTaskId, message);
+    }
+    
     setMessage('');
+  };
 
-    // Simulate AI response with streaming
-    setTimeout(() => {
-      const aiResponse: Message = {
-        id: (Date.now() + 1).toString(),
-        text: "I'll help you with that. Let me break this down into steps...",
-        type: 'system',
-        timestamp: new Date(),
-        isStreaming: true,
-        steps: mockSteps
-      };
-      setMessages(prev => [...prev, aiResponse]);
-      setIsStreaming(true);
-    }, 500);
-
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const handleSparkComplete = () => {
+    setShowSparkAnimation(false);
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -99,6 +100,15 @@ export function InteractionCard({ activeTaskId, tasks, onTaskStart }: Interactio
 
   return (
     <div className={styles.cardContainer}>
+      {showSparkAnimation && (
+        <SparkAnimation
+          startX={sparkCoords.startX}
+          startY={sparkCoords.startY}
+          endX={sparkCoords.endX}
+          endY={sparkCoords.endY}
+          onComplete={handleSparkComplete}
+        />
+      )}
       <motion.div
         className={clsx(styles.glassCard, {
           [styles.active]: isActive,
@@ -108,35 +118,16 @@ export function InteractionCard({ activeTaskId, tasks, onTaskStart }: Interactio
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        {/* Animated Background Effect */}
-        <motion.div
-          className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl overflow-hidden"
-          animate={{
-            background: [
-              'radial-gradient(circle at 0% 0%, rgba(255, 160, 122, 0.03), transparent 50%)',
-              'radial-gradient(circle at 100% 100%, rgba(255, 160, 122, 0.03), transparent 50%)',
-              'radial-gradient(circle at 0% 100%, rgba(255, 160, 122, 0.03), transparent 50%)',
-              'radial-gradient(circle at 100% 0%, rgba(255, 160, 122, 0.03), transparent 50%)',
-              'radial-gradient(circle at 0% 0%, rgba(255, 160, 122, 0.03), transparent 50%)',
-            ]
-          }}
-          transition={{
-            duration: 15,
-            repeat: Infinity,
-            ease: "linear"
-          }}
-        />
-
         <div className={styles.cardContent}>
           {activeTask && (
             <motion.div 
               className={styles.taskInfo}
-              initial={{ opacity: 0, y: -20 }}
+              initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
             >
               <div className={styles.taskHeader}>
                 <h2 className={styles.taskTitle}>
-                  {isPending ? (messages[0]?.text.slice(0, 50) || 'New Task') : 
+                  {isPending ? (currentMessages[0]?.text.slice(0, 50) || 'New Task') : 
                    activeTask.name || activeTask.description || 'New Task'}
                 </h2>
                 <motion.div 
@@ -164,7 +155,7 @@ export function InteractionCard({ activeTaskId, tasks, onTaskStart }: Interactio
                 </div>
               </div>
               
-              {isPending && messages.length === 0 && (
+              {isPending && currentMessages.length === 0 && (
                 <motion.p 
                   className={styles.taskDescription}
                   initial={{ opacity: 0 }}
@@ -178,7 +169,7 @@ export function InteractionCard({ activeTaskId, tasks, onTaskStart }: Interactio
 
           <div className={styles.messageContainer}>
             <AnimatePresence mode="popLayout">
-              {messages.map((msg) => (
+              {currentMessages.map((msg) => (
                 <motion.div
                   key={msg.id}
                   className={clsx(styles.message, styles[msg.type])}
@@ -233,13 +224,14 @@ export function InteractionCard({ activeTaskId, tasks, onTaskStart }: Interactio
               disabled={!isActive}
             />
             <motion.button
+              ref={sendButtonRef}
               className={styles.sendButton}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={handleSendMessage}
               disabled={!isActive || !message.trim()}
             >
-              <PaperAirplaneIcon className="w-4 h-4" />
+              <PaperAirplaneIcon className="w-5 h-5" />
             </motion.button>
           </div>
         </div>
