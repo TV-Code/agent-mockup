@@ -34,6 +34,13 @@ function App() {
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [pendingTask, setPendingTask] = useState<Task | null>(null);
   const [messagesMap, setMessagesMap] = useState<Record<string, Message[]>>({});
+  const [isDarkMode, setIsDarkMode] = useState(true);
+
+  // Add theme toggle handler
+  const handleThemeToggle = useCallback(() => {
+    setIsDarkMode(prev => !prev);
+    // You can add additional theme-related logic here
+  }, []);
 
   // Load initial tasks from the server
   useEffect(() => {
@@ -244,6 +251,8 @@ function App() {
       onTaskStart={handleTaskStart}
       messagesMap={messagesMap}
       onSendMessage={handleSendMessage}
+      isDarkMode={isDarkMode}
+      onToggleTheme={handleThemeToggle}
     />
   );
 }

@@ -16,6 +16,8 @@ interface LayoutProps {
   onTaskStart: (taskId: string, initialMessage: string) => void;
   messagesMap: Record<string, Message[]>;
   onSendMessage: (taskId: string, message: string) => void;
+  isDarkMode: boolean;
+  onToggleTheme: () => void;
 }
 
 export function Layout({ 
@@ -25,7 +27,9 @@ export function Layout({
   onTaskSelect, 
   onTaskStart,
   messagesMap,
-  onSendMessage 
+  onSendMessage,
+  isDarkMode,
+  onToggleTheme
 }: LayoutProps) {
   const backgroundRef = useRef<HTMLDivElement>(null);
   const controls = useAnimation();
@@ -53,7 +57,7 @@ export function Layout({
   }, [controls]);
 
   return (
-    <div className="relative min-h-screen bg-surface text-white p-6 overflow-hidden">
+    <div className={`relative min-h-screen ${isDarkMode ? 'bg-surface' : 'bg-gray-50'} text-white p-6 overflow-hidden`}>
       {/* Animated Background Effect */}
       <motion.div
         ref={backgroundRef}
@@ -72,6 +76,8 @@ export function Layout({
           onAddTask={onAddTask}
           onTaskSelect={onTaskSelect}
           className="mb-6"
+          isDarkMode={isDarkMode}
+          onToggleTheme={onToggleTheme}
         />
 
         <div className="grid grid-cols-12 gap-6 h-[calc(100vh-8rem)]">
@@ -119,18 +125,20 @@ export function Layout({
                 title="System Status"
                 type="status"
                 tasks={tasks}
+                isDarkMode={isDarkMode}
               />
             </motion.div>
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.1, duration: 0.2 }}
               className="flex-1"
+              transition={{ duration: 0.2 }}
             >
               <MonitoringCard
                 title="Activity"
                 type="analytics"
                 tasks={tasks}
+                isDarkMode={isDarkMode}
               />
             </motion.div>
           </div>
