@@ -4,7 +4,7 @@
 
 @layer base {
   body {
-    @apply bg-background text-white;
+    @apply bg-surface text-white;
     margin: 0;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
       'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
@@ -16,7 +16,7 @@
 
 @layer components {
   .glass {
-    @apply bg-black/20 backdrop-blur-md;
+    @apply bg-glass backdrop-blur-md;
     position: relative;
     z-index: 1;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
@@ -47,22 +47,13 @@
     border-radius: inherit;
   }
 
-  .glass-hover {
-    @apply transition-all duration-300;
-  }
-
-  .glass-hover:hover {
-    @apply bg-black/30;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-  }
-
   .glass-border {
-    @apply border border-white/10;
+    @apply border border-glass-stroke;
     background-clip: padding-box;
   }
 
   .glass-active {
-    @apply bg-black/40;
+    @apply bg-glass/40;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   }
 }

@@ -50,10 +50,8 @@ export function FerroCore({ tasks, activeTaskId }: FerroCoreProps) {
 
   // Dynamic color system
   const color = useMemo(() => {
-    if (metrics.progress > 0.8) return new THREE.Color('#14B8A6');
-    if (metrics.progress > 0.3) return new THREE.Color('#0284C7');
-    return new THREE.Color('#4F46E5');
-  }, [metrics.progress]);
+    return new THREE.Color('#ffa07a');
+  }, []);
 
   // Animation loop
   useFrame((state) => {

@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Task, TaskStatus } from '../types/task';
+import clsx from 'clsx';
 
 // Chart Bar Icon component
 const ChartBarIcon = ({ className = "w-5 h-5" }) => (
@@ -56,120 +57,237 @@ export function MonitoringCard({ title, type, tasks }: MonitoringCardProps) {
     const completed = tasks.filter(t => t.status === 'COMPLETED').length;
     const processing = tasks.filter(t => t.status === 'PROCESSING').length;
     const error = tasks.filter(t => t.status === 'ERROR').length;
-    const avgProgress = tasks.length > 0 
-      ? tasks.reduce((acc, task) => acc + task.progress, 0) / tasks.length
-      : 0;
+    
+    // Calculate average completion time (mock data for now)
+    const avgCompletionTime = "2.5 min";
+    
+    // Calculate success rate
+    const successRate = total ? Math.round((completed / total) * 100) : 0;
+    
+    // Get most recent tasks (limit to 3)
+    const recentTasks = [...tasks]
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+      .slice(0, 3);
 
     return {
       total,
       completed,
       processing,
       error,
-      avgProgress,
-      completionRate: total ? (completed / total) * 100 : 0,
-      errorRate: total ? (error / total) * 100 : 0,
+      successRate,
+      avgCompletionTime,
+      recentTasks,
+      activeTasksData: tasks
+        .filter(t => t.status === 'PROCESSING')
+        .map(t => ({
+          id: t.id,
+          progress: Math.min(100, Math.round(t.progress)),
+          timeRemaining: "~1 min", // Mock data for now
+          name: t.name || t.description || `Task ${t.id.slice(0, 8)}`
+        }))
     };
   }, [tasks]);
 
   return (
     <motion.div
-      whileHover={{ scale: 1.01 }}
-      className="h-full p-4 bg-[#2a2a2d]/80 backdrop-blur-xl rounded-xl border border-gray-800/50"
+      className="relative h-full"
     >
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-medium text-gray-200">{title}</h2>
-        <ChartBarIcon />
-      </div>
+      {/* Static Background */}
+      <div
+        className="absolute inset-0 opacity-100 rounded-2xl overflow-hidden"
+        style={{
+          background: 'radial-gradient(circle at 50% 50%, rgba(255, 160, 122, 0.03), transparent 50%)'
+        }}
+      />
 
-      {type === 'status' ? (
-        <div className="space-y-4">
-          {/* Status Indicators */}
-          <div className="grid grid-cols-2 gap-4">
-            <StatusItem
-              label="Processing"
-              value={stats.processing}
-              icon={ClockIcon}
-              color="text-blue-400"
-            />
-            <StatusItem
-              label="Completed"
-              value={stats.completed}
-              icon={CheckCircleIcon}
-              color="text-green-400"
-            />
-          </div>
+      {/* Card Content */}
+      <motion.div 
+        className="relative h-full rounded-2xl border-[0.5px] border-[rgb(255,160,122)]/10 shadow-premium flex flex-col overflow-hidden"
+        style={{
+          background: 'linear-gradient(to bottom, rgba(255, 160, 122, 0.01), rgba(255, 160, 122, 0.02))',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+        }}
+      >
+        {/* Accent Border */}
+        <div
+          className="absolute inset-0 rounded-2xl"
+          style={{
+            padding: '1px',
+            background: 'linear-gradient(to bottom right, rgba(255, 160, 122, 0.1), rgba(255, 160, 122, 0))',
+            WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+            mask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+            WebkitMaskComposite: 'xor',
+            maskComposite: 'exclude',
+            pointerEvents: 'none',
+          }}
+        />
 
-          {/* Progress Bar */}
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-400">Overall Progress</span>
-              <span className="text-[#ffa07a]">{(stats.avgProgress * 100).toFixed(1)}%</span>
-            </div>
-            <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${stats.avgProgress * 100}%` }}
-                transition={{ duration: 0.5 }}
-                className="h-full bg-gradient-to-r from-[#ffa07a] to-[#ff7a50]"
-              />
-            </div>
-          </div>
-
-          {/* Completion Rate */}
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-400">Completion Rate</span>
-              <span className="text-[#ffa07a]">{stats.completionRate.toFixed(1)}%</span>
-            </div>
-            <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${stats.completionRate}%` }}
-                transition={{ duration: 0.5 }}
-                className="h-full bg-gradient-to-r from-[#ffa07a] to-[#ff7a50]"
-              />
-            </div>
+        <div className="p-3 border-b border-[rgb(255,160,122)]/[0.02] shrink-0">
+          <div className="flex items-center justify-between">
+            <h2 className="text-[15px] font-medium text-white/80">{title}</h2>
+            <ChartBarIcon className="w-4 h-4 text-[rgb(255,160,122)]/30" />
           </div>
         </div>
-      ) : (
-        <div className="space-y-4">
-          {/* Performance Metrics */}
-          <div className="grid grid-cols-2 gap-4">
-            <MetricItem
-              label="Total Tasks"
-              value={stats.total}
-              change={`${stats.processing} active`}
-            />
-            <MetricItem
-              label="Error Rate"
-              value={`${stats.errorRate.toFixed(1)}%`}
-              change={`${stats.error} total`}
-              trend={stats.error > 0 ? 'up' : 'down'}
-            />
-          </div>
 
-          {/* Activity Graph */}
-          <div className="mt-4">
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-sm text-gray-400">Task Progress</span>
-              <span className="text-xs text-gray-500">Active Tasks</span>
+        <div className="p-3 overflow-y-auto flex-1">
+          {type === 'status' ? (
+            <div className="space-y-3">
+              {/* Quick Stats */}
+              <div className="grid grid-cols-2 gap-2">
+                <StatusItem
+                  label="In Progress"
+                  value={stats.processing}
+                  subtext={stats.processing === 1 ? 'task' : 'tasks'}
+                  icon={ClockIcon}
+                  color="text-[rgb(255,160,122)]/90"
+                  trend="default"
+                />
+                <StatusItem
+                  label="Success Rate"
+                  value={stats.successRate}
+                  subtext="%"
+                  icon={CheckCircleIcon}
+                  color="text-[rgb(255,160,122)]/90"
+                  trend="default"
+                />
+              </div>
+
+              {/* Active Tasks */}
+              {stats.activeTasksData.length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="text-[13px] font-medium text-white/50">Active Tasks</h3>
+                  <div className="space-y-1.5 max-h-[20vh] overflow-y-auto">
+                    {stats.activeTasksData.map(task => (
+                      <div 
+                        key={task.id} 
+                        className="rounded-lg p-2 border-[0.5px] border-[rgb(255,160,122)]/20 backdrop-blur-xl"
+                        style={{
+                          background: 'linear-gradient(to bottom, rgba(255, 160, 122, 0.02), rgba(255, 160, 122, 0.01))',
+                        }}
+                      >
+                        <div className="flex justify-between items-start mb-1.5">
+                          <span className="text-[13px] text-white/70 truncate flex-1">{task.name}</span>
+                          <span className="text-[11px] text-[rgb(255,160,122)]/70 ml-2 whitespace-nowrap">{task.timeRemaining}</span>
+                        </div>
+                        <div className="h-[3px] bg-white/[0.03] rounded-full overflow-hidden">
+                          <motion.div
+                            className="h-full"
+                            style={{
+                              background: 'linear-gradient(to right, rgba(255, 160, 122, 0.5), rgba(255, 160, 122, 0.8))',
+                            }}
+                            initial={{ width: 0 }}
+                            animate={{ width: `${task.progress}%` }}
+                            transition={{ duration: 0.5 }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Recent Activity */}
+              <div className="space-y-2">
+                <h3 className="text-[13px] font-medium text-white/50">Recent Activity</h3>
+                <div className="space-y-1.5 max-h-[20vh] overflow-y-auto">
+                  {stats.recentTasks.map(task => (
+                    <div 
+                      key={task.id} 
+                      className="flex items-center justify-between p-1.5 rounded-lg text-[13px] border-[0.5px] border-[rgb(255,160,122)]/[0.05] backdrop-blur-xl"
+                      style={{
+                        background: 'linear-gradient(to bottom, rgba(255, 160, 122, 0.01), rgba(255, 160, 122, 0.02))',
+                      }}
+                    >
+                      <span className="text-white/70 truncate flex-1">
+                        {task.name || task.description || `Task ${task.id.slice(0, 8)}`}
+                      </span>
+                      <span className={clsx(
+                        'px-1.5 py-0.5 rounded-md text-[11px] ml-2 whitespace-nowrap border-[0.5px]',
+                        task.status === 'COMPLETED' ? 'text-[rgb(255,160,122)] border-[rgb(255,160,122)]/20 bg-[rgb(255,160,122)]/10' :
+                        task.status === 'PROCESSING' ? 'text-white/70 border-white/20 bg-white/10' :
+                        task.status === 'ERROR' ? 'text-[rgb(255,86,86)] border-[rgb(255,86,86)]/20 bg-[rgb(255,86,86)]/10' :
+                        'text-[rgb(255,196,0)] border-[rgb(255,196,0)]/20 bg-[rgb(255,196,0)]/10'
+                      )}>
+                        {task.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
-            <div className="h-20 flex items-end space-x-1">
-              {tasks
-                .filter(t => t.status === 'PROCESSING')
-                .map((task) => (
-                  <div
-                    key={task.id}
-                    className="flex-1 bg-[#ffa07a]/20 rounded-t"
+          ) : (
+            <div className="space-y-3">
+              {/* Performance Overview */}
+              <div className="grid grid-cols-2 gap-2">
+                <MetricItem
+                  label="Avg. Completion"
+                  value={stats.avgCompletionTime}
+                  change="per task"
+                  trend="processing"
+                />
+                <MetricItem
+                  label="Success Rate"
+                  value={`${stats.successRate}%`}
+                  change={`${stats.completed} completed`}
+                  trend={stats.successRate > 80 ? 'completed' : 'pending'}
+                />
+              </div>
+
+              {/* Task Distribution */}
+              <div className="space-y-2">
+                <h3 className="text-[13px] font-medium text-white/50">Task Distribution</h3>
+                <div className="grid grid-cols-4 gap-1.5 h-20">
+                  <div className="rounded-lg relative overflow-hidden border-[0.5px] border-[rgb(255,160,122)]/20 backdrop-blur-xl"
                     style={{
-                      height: `${task.progress * 100}%`,
-                    }}
-                  />
-                ))}
+                      background: 'linear-gradient(to bottom, rgba(255, 160, 122, 0.02), rgba(255, 160, 122, 0.01))',
+                    }}>
+                    <div className="absolute inset-x-0 bottom-0 bg-[rgb(255,160,122)]/10" 
+                      style={{ height: `${(stats.completed / stats.total) * 100}%` }} />
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-1.5">
+                      <span className="text-[11px] text-[rgb(255,160,122)]/70">Completed</span>
+                      <span className="text-[13px] font-medium text-[rgb(255,160,122)]">{stats.completed}</span>
+                    </div>
+                  </div>
+                  <div className="rounded-lg relative overflow-hidden border-white/20 backdrop-blur-xl"
+                    style={{
+                      background: 'linear-gradient(to bottom, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01))',
+                    }}>
+                    <div className="absolute inset-x-0 bottom-0 bg-white/10" 
+                      style={{ height: `${(stats.processing / stats.total) * 100}%` }} />
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-1.5">
+                      <span className="text-[11px] text-white/70">Active</span>
+                      <span className="text-[13px] font-medium text-white">{stats.processing}</span>
+                    </div>
+                  </div>
+                  <div className="rounded-lg relative overflow-hidden border-[0.5px] border-[rgb(255,86,86)]/20 backdrop-blur-xl"
+                    style={{
+                      background: 'linear-gradient(to bottom, rgba(255, 86, 86, 0.02), rgba(255, 86, 86, 0.01))',
+                    }}>
+                    <div className="absolute inset-x-0 bottom-0 bg-[rgb(255,86,86)]/10" 
+                      style={{ height: `${(stats.error / stats.total) * 100}%` }} />
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-1.5">
+                      <span className="text-[11px] text-[rgb(255,86,86)]/70">Failed</span>
+                      <span className="text-[13px] font-medium text-[rgb(255,86,86)]">{stats.error}</span>
+                    </div>
+                  </div>
+                  <div className="rounded-lg relative overflow-hidden border-white/[0.05] backdrop-blur-xl"
+                    style={{
+                      background: 'linear-gradient(to bottom, rgba(255, 255, 255, 0.01), rgba(255, 255, 255, 0.02))',
+                    }}>
+                    <div className="absolute inset-x-0 bottom-0 bg-white/[0.03]" 
+                      style={{ height: '100%' }} />
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-1.5">
+                      <span className="text-[11px] text-white/40">Total</span>
+                      <span className="text-[13px] font-medium text-white/70">{stats.total}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
         </div>
-      )}
+      </motion.div>
     </motion.div>
   );
 }
@@ -177,17 +295,47 @@ export function MonitoringCard({ title, type, tasks }: MonitoringCardProps) {
 interface StatusItemProps {
   label: string;
   value: number;
+  subtext: string;
   icon: React.ComponentType<{ className?: string }>;
   color: string;
+  trend: 'completed' | 'processing' | 'error' | 'pending' | 'default';
 }
 
-function StatusItem({ label, value, icon: Icon, color }: StatusItemProps) {
+function StatusItem({ label, value, subtext, icon: Icon, color, trend }: StatusItemProps) {
+  const getBorderColor = () => {
+    switch (trend) {
+      case 'completed': return 'border-[rgb(255,160,122)]/20';
+      case 'processing': return 'border-white/20';
+      case 'error': return 'border-[rgb(255,86,86)]/20';
+      case 'pending': return 'border-[rgb(255,196,0)]/20';
+      default: return 'border-white/20';
+    }
+  };
+
+  const getBackground = () => {
+    switch (trend) {
+      case 'completed': return 'linear-gradient(to bottom, rgba(255, 160, 122, 0.02), rgba(255, 160, 122, 0.01))';
+      case 'processing': return 'linear-gradient(to bottom, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01))';
+      case 'error': return 'linear-gradient(to bottom, rgba(255, 86, 86, 0.02), rgba(255, 86, 86, 0.01))';
+      case 'pending': return 'linear-gradient(to bottom, rgba(255, 196, 0, 0.02), rgba(255, 196, 0, 0.01))';
+      default: return 'linear-gradient(to bottom, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01))';
+    }
+  };
+
   return (
-    <div className="flex items-center space-x-3 p-3 rounded-lg bg-[#222224]">
-      <Icon className={`w-5 h-5 ${color}`} />
-      <div>
-        <div className="text-sm text-gray-400">{label}</div>
-        <div className="text-lg font-medium text-gray-200">{value}</div>
+    <div 
+      className={`rounded-lg border-[0.5px] ${getBorderColor()} p-2.5 backdrop-blur-xl`}
+      style={{
+        background: getBackground(),
+      }}
+    >
+      <div className="flex items-center space-x-2 mb-0.5">
+        <Icon className={`w-4 h-4 ${color}`} />
+        <span className="text-[13px] text-white/50">{label}</span>
+      </div>
+      <div className="text-lg font-medium text-white/80">
+        {value}
+        <span className="text-[13px] text-white/30 ml-1">{subtext}</span>
       </div>
     </div>
   );
@@ -197,17 +345,40 @@ interface MetricItemProps {
   label: string;
   value: string | number;
   change: string;
-  trend?: 'up' | 'down';
+  trend: 'completed' | 'processing' | 'error' | 'pending' | 'default';
 }
 
 function MetricItem({ label, value, change, trend }: MetricItemProps) {
+  const getBorderColor = () => {
+    switch (trend) {
+      case 'completed': return 'border-[rgb(255,160,122)]/20';
+      case 'processing': return 'border-white/20';
+      case 'error': return 'border-[rgb(255,86,86)]/20';
+      case 'pending': return 'border-[rgb(255,196,0)]/20';
+      default: return 'border-white/20';
+    }
+  };
+
+  const getBackground = () => {
+    switch (trend) {
+      case 'completed': return 'linear-gradient(to bottom, rgba(255, 160, 122, 0.02), rgba(255, 160, 122, 0.01))';
+      case 'processing': return 'linear-gradient(to bottom, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01))';
+      case 'error': return 'linear-gradient(to bottom, rgba(255, 86, 86, 0.02), rgba(255, 86, 86, 0.01))';
+      case 'pending': return 'linear-gradient(to bottom, rgba(255, 196, 0, 0.02), rgba(255, 196, 0, 0.01))';
+      default: return 'linear-gradient(to bottom, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01))';
+    }
+  };
+
   return (
-    <div className="p-3 rounded-lg bg-[#222224]">
-      <div className="text-sm text-gray-400">{label}</div>
-      <div className="text-lg font-medium text-gray-200">{value}</div>
-      <div className={`text-xs ${
-        trend === 'down' ? 'text-green-400' : 'text-[#ffa07a]'
-      }`}>
+    <div 
+      className={`rounded-lg border-[0.5px] ${getBorderColor()} p-2.5 backdrop-blur-xl`}
+      style={{
+        background: getBackground(),
+      }}
+    >
+      <div className="text-[13px] text-white/50 mb-0.5">{label}</div>
+      <div className="text-lg font-medium text-white/80">{value}</div>
+      <div className="text-[11px] text-white/30">
         {change}
       </div>
     </div>

@@ -17,36 +17,32 @@ const initialTask: Task = {
 };
 
 function App() {
-  // Load tasks from localStorage on initial render
-  const [tasks, setTasks] = useState<Task[]>(() => {
-    const savedTasks = localStorage.getItem('tasks');
-    return savedTasks ? JSON.parse(savedTasks) : [initialTask];
-  });
-  
-  const [activeTaskId, setActiveTaskId] = useState<string | null>(() => {
-    const savedActiveId = localStorage.getItem('activeTaskId');
-    return savedActiveId || initialTask.id;
-  });
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
+  const [pendingTask, setPendingTask] = useState<Task | null>(null);
 
-  // Save tasks to localStorage whenever they change
+  // Load initial tasks from the server
   useEffect(() => {
-    localStorage.setItem('tasks', JSON.stringify(tasks));
-  }, [tasks]);
+    const fetchTasks = async () => {
+      try {
+        const response = await fetch('http://localhost:8000/tasks');
+        if (!response.ok) throw new Error('Failed to fetch tasks');
+        const tasks = await response.json();
+        setTasks(tasks);
+      } catch (error) {
+        console.error('Error fetching tasks:', error);
+      }
+    };
 
-  useEffect(() => {
-    localStorage.setItem('activeTaskId', activeTaskId || '');
-  }, [activeTaskId]);
+    fetchTasks();
+  }, []);
 
-  // WebSocket connection for all tasks
+  // WebSocket connection for task updates
   useEffect(() => {
     const ws = new WebSocket('ws://localhost:8000/ws');
     
     ws.onopen = () => {
       console.log('WebSocket Connected');
-      // Subscribe to updates for all tasks
-      tasks.forEach(task => {
-        ws.send(JSON.stringify({ type: 'SUBSCRIBE', taskId: task.id }));
-      });
     };
 
     ws.onmessage = (event) => {
@@ -73,67 +69,77 @@ function App() {
 
     ws.onclose = () => {
       console.log('WebSocket Disconnected');
-      // Attempt to reconnect after 2 seconds
       setTimeout(() => {
         console.log('Attempting to reconnect...');
-        // The effect will run again and attempt to reconnect
       }, 2000);
     };
 
     return () => {
       ws.close();
     };
-  }, []); // Empty dependency array to only run on mount
+  }, []);
 
-  const handleAddTask = async () => {
+  const handleAddTask = () => {
+    // Create a temporary task for UI purposes only
+    const tempTask: Task = {
+      id: 'pending-' + Date.now(),
+      name: '',
+      status: 'PENDING',
+      progress: 0,
+      description: '',
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    setPendingTask(tempTask);
+    setActiveTaskId(tempTask.id);
+  };
+
+  const handleTaskSelect = (taskId: string) => {
+    setActiveTaskId(taskId);
+  };
+
+  const handleTaskStart = async (taskId: string, initialMessage: string) => {
+    if (!taskId.startsWith('pending-')) return;
+
     try {
+      // Create the actual task with the backend
       const response = await fetch('http://localhost:8000/tasks', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          description: 'New task description',
+          description: initialMessage,
         }),
       });
       
       if (!response.ok) throw new Error('Failed to create task');
       
       const newTask = await response.json();
+      
+      // Replace the pending task with the real one
       setTasks(prev => [...prev, newTask]);
+      setPendingTask(null);
       setActiveTaskId(newTask.id);
     } catch (error) {
       console.error('Error creating task:', error);
+      // Handle error - maybe show a notification to the user
     }
   };
 
-  const handleTaskSelect = (taskId: string) => {
-    console.log('Selecting task:', taskId); // Debug log
-    setActiveTaskId(taskId);
-  };
-
-  // Load initial tasks from the server
-  useEffect(() => {
-    const fetchTasks = async () => {
-      try {
-        const response = await fetch('http://localhost:8000/tasks');
-        if (!response.ok) throw new Error('Failed to fetch tasks');
-        const tasks = await response.json();
-        setTasks(tasks);
-      } catch (error) {
-        console.error('Error fetching tasks:', error);
-      }
-    };
-
-    fetchTasks();
-  }, []);
+  // Combine real tasks with pending task for UI
+  const allTasks = pendingTask 
+    ? [...tasks, pendingTask]
+    : tasks;
 
   return (
     <Layout
-      tasks={tasks}
+      tasks={allTasks}
       activeTaskId={activeTaskId}
       onAddTask={handleAddTask}
       onTaskSelect={handleTaskSelect}
+      onTaskStart={handleTaskStart}
     />
   );
 }

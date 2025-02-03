@@ -90,11 +90,11 @@ void main() {
     snoise(position * 5.0 + uTime * 0.3),
     snoise(position * 5.0 + uTime * 0.3 + 100.0),
     snoise(position * 5.0 + uTime * 0.3 + 200.0)
-  ) * uDistortion * 0.1;
+  ) * uDistortion * 0.15;
   
   // Vertex displacement calculation
   vec3 displaced = position + 
-    normal * (macroNoise * uDistortion * 0.1 + microNoise * uActivity) +
+    normal * (macroNoise * uDistortion * 0.3 + microNoise * uActivity) +
     fieldDistortion;
   
   // System pulse animation

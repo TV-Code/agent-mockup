@@ -59,10 +59,10 @@ export function TaskTabs({
               onClick={() => onTaskSelect(task.id)}
               className={`
                 flex items-center px-4 py-2 rounded-t-lg mr-1 min-w-[180px] max-w-[300px]
-                transition-all duration-200 relative cursor-pointer
+                transition-colors duration-200 relative cursor-pointer
                 ${activeTaskId === task.id
                   ? 'glass glass-border glass-active'
-                  : 'glass glass-hover glass-border opacity-70'}
+                  : 'glass glass-border opacity-70'}
               `}
             >
               <div className="flex items-center space-x-2 w-full relative z-10">
@@ -73,7 +73,7 @@ export function TaskTabs({
                 `} />
                 <div className="flex flex-col items-start min-w-0">
                   <span className="text-sm font-medium truncate w-full">
-                    {task.name || `Task ${task.id.slice(0, 8)}`}
+                    {task.name || task.description || 'New Task'}
                   </span>
                   <span className="text-xs text-gray-400 truncate w-full">
                     {getStatusText(task.status)} • {Math.round(task.progress)}%
@@ -95,21 +95,17 @@ export function TaskTabs({
 
       {/* Action Buttons */}
       <div className="flex items-center space-x-2 pl-2 border-l border-white/10">
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
+        <button
           onClick={onAddTask}
-          className="p-2 rounded-lg glass glass-hover glass-border"
+          className="p-2 rounded-lg glass glass-border"
         >
           <PlusIcon />
-        </motion.button>
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          className="p-2 rounded-lg glass glass-hover glass-border"
+        </button>
+        <button
+          className="p-2 rounded-lg glass glass-border"
         >
           <ChartBarIcon />
-        </motion.button>
+        </button>
       </div>
     </div>
   );
