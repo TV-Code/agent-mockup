@@ -193,11 +193,11 @@ varying vec3 vNormal;
 varying vec3 vPosition;
 
 void main() {
-  // Enhanced surface flow pattern
-  float surfaceFlow = sin(vPosition.x * 30.0 + uTime) * 
-                     cos(vPosition.y * 30.0 + uTime) *
-                     sin(vPosition.z * 30.0 + uTime);
-  surfaceFlow = smoothstep(-0.5, 0.5, surfaceFlow);
+  // Smoother surface flow pattern with lower frequency in idle
+  float surfaceFlow = sin(vPosition.x * 10.0 + uTime) * 
+                     cos(vPosition.y * 10.0 + uTime) *
+                     sin(vPosition.z * 10.0 + uTime);
+  surfaceFlow = smoothstep(-0.3, 0.3, surfaceFlow);
   
   // Dynamic flow during thinking state
   if (uThinkingState > 0.0) {
@@ -209,42 +209,41 @@ void main() {
   
   // Base metallic color with enhanced thinking state
   vec3 baseColor = mix(
-    uColor * 0.7,
-    uColor * 1.2,
+    uColor * 0.8,
+    uColor * 1.1,
     surfaceFlow * (uActivity + uThinkingState * 0.5)
   );
   
-  // Energy core effect
-  float energyCore = smoothstep(0.3, 0.8, 
-    sin(length(vPosition) * 15.0 - uTime * 2.0)
+  // Energy core effect - made smoother
+  float energyCore = smoothstep(0.2, 0.9, 
+    sin(length(vPosition) * 8.0 - uTime * 1.5)
   );
   
-  // Enhanced magnetic field lines with thinking state variation
-  float fieldLines = step(0.97, fract(vPosition.y * 10.0 + uTime));
+  // Removed field lines in idle state, only show during thinking
+  float fieldLines = 0.0;
   if (uThinkingState > 0.0) {
-    float thinkingLines = step(0.95, 
+    fieldLines = step(0.95, 
       fract(
         sin(vPosition.x * 15.0 + uTime * 1.5) * 
         cos(vPosition.y * 15.0 - uTime) * 
         sin(vPosition.z * 15.0 + uTime * 2.0)
       )
     );
-    fieldLines = mix(fieldLines, thinkingLines, uThinkingState);
   }
   
   // Combine all effects
   vec3 finalColor = baseColor;
-  finalColor += uColor * energyCore * 0.3;
-  finalColor += uColor * fieldLines * (uActivity + uThinkingState) * 0.3;
+  finalColor += uColor * energyCore * 0.2;
+  finalColor += uColor * fieldLines * uThinkingState * 0.3;
   
   // Enhanced fresnel effect
   vec3 viewDir = normalize(cameraPosition - vPosition);
   float fresnel = pow(1.0 - dot(viewDir, vNormal), 3.0);
-  finalColor += uColor * fresnel * 0.3;
+  finalColor += uColor * fresnel * 0.2;
   
-  // Advanced alpha control with thinking state enhancement
-  float alpha = mix(0.8, 0.95, energyCore + uThinkingState * 0.1);
-  alpha *= 1.0 - smoothstep(0.7, 1.0, fresnel);
+  // Smoother alpha control
+  float alpha = mix(0.85, 0.95, energyCore + uThinkingState * 0.1);
+  alpha *= 1.0 - smoothstep(0.8, 1.0, fresnel);
 
   gl_FragColor = vec4(finalColor, alpha);
 }
