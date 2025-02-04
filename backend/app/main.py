@@ -25,7 +25,7 @@ class SharedState:
     def __init__(self):
         self.active_tasks: Dict[str, dict] = {}
         self.tasks_lock = Lock()
-        self.active_connections: Set[WebSocket] = set()
+        self.task_connections: Dict[str, Set[WebSocket]] = {}  # Track connections per task
         self.connections_lock = Lock()
 
 state = SharedState()
@@ -33,6 +33,69 @@ state = SharedState()
 class TaskCreate(BaseModel):
     description: str
 
+@app.websocket("/ws/task/{task_id}")
+async def task_websocket_endpoint(websocket: WebSocket, task_id: str):
+    try:
+        await websocket.accept()
+        
+        # Add connection to task-specific set
+        async with state.connections_lock:
+            if task_id not in state.task_connections:
+                state.task_connections[task_id] = set()
+            state.task_connections[task_id].add(websocket)
+        
+        try:
+            # Send initial task state if it exists
+            async with state.tasks_lock:
+                if task_id in state.active_tasks:
+                    await websocket.send_json(state.active_tasks[task_id])
+            
+            while True:
+                data = await websocket.receive_text()
+                print(f"Received message for task {task_id}: {data}")
+                
+                # Handle task-specific messages here
+                try:
+                    message = json.loads(data)
+                    if message.get('type') == 'poll':
+                        async with state.tasks_lock:
+                            if task_id in state.active_tasks:
+                                await websocket.send_json(state.active_tasks[task_id])
+                except json.JSONDecodeError:
+                    print(f"Invalid JSON message: {data}")
+                
+        except WebSocketDisconnect:
+            print(f"WebSocket disconnected for task {task_id}")
+            async with state.connections_lock:
+                if task_id in state.task_connections:
+                    state.task_connections[task_id].remove(websocket)
+                    if not state.task_connections[task_id]:
+                        del state.task_connections[task_id]
+    except Exception as e:
+        print(f"WebSocket error for task {task_id}: {str(e)}")
+        async with state.connections_lock:
+            if task_id in state.task_connections and websocket in state.task_connections[task_id]:
+                state.task_connections[task_id].remove(websocket)
+                if not state.task_connections[task_id]:
+                    del state.task_connections[task_id]
+
+async def broadcast_task_update(task_id: str, update: dict):
+    """Broadcast update only to connections for specific task"""
+    async with state.connections_lock:
+        if task_id in state.task_connections:
+            dead_connections = set()
+            for connection in state.task_connections[task_id]:
+                try:
+                    await connection.send_json(update)
+                except:
+                    dead_connections.add(connection)
+            
+            # Clean up dead connections
+            state.task_connections[task_id] -= dead_connections
+            if not state.task_connections[task_id]:
+                del state.task_connections[task_id]
+
+# Update process_task_with_api to use task-specific broadcasting
 async def process_task_with_api(task_id: str):
     """Simulates API calls with proper error handling and rate limiting"""
     try:
@@ -66,17 +129,8 @@ async def process_task_with_api(task_id: str):
                             if task_id in state.active_tasks:
                                 state.active_tasks[task_id].update(update)
                         
-                        # Broadcast update to all connected clients
-                        async with state.connections_lock:
-                            dead_connections = set()
-                            for connection in state.active_connections:
-                                try:
-                                    await connection.send_json(update)
-                                except:
-                                    dead_connections.add(connection)
-                            
-                            # Clean up dead connections
-                            state.active_connections -= dead_connections
+                        # Broadcast update only to task-specific connections
+                        await broadcast_task_update(task_id, update)
                         
                         await asyncio.sleep(10)  # Rate limiting
                         
@@ -100,34 +154,8 @@ async def process_task_with_api(task_id: str):
             if task_id in state.active_tasks:
                 state.active_tasks[task_id].update(error_update)
         
-        # Broadcast error
-        async with state.connections_lock:
-            for connection in state.active_connections:
-                try:
-                    await connection.send_json(error_update)
-                except:
-                    pass
-
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    try:
-        await websocket.accept()
-        
-        async with state.connections_lock:
-            state.active_connections.add(websocket)
-        
-        try:
-            while True:
-                data = await websocket.receive_text()
-                print(f"Received message: {data}")
-        except WebSocketDisconnect:
-            async with state.connections_lock:
-                state.active_connections.remove(websocket)
-    except Exception as e:
-        print(f"WebSocket error: {str(e)}")
-        async with state.connections_lock:
-            if websocket in state.active_connections:
-                state.active_connections.remove(websocket)
+        # Broadcast error to task-specific connections
+        await broadcast_task_update(task_id, error_update)
 
 @app.post("/tasks")
 async def create_task(task: TaskCreate):
@@ -161,6 +189,17 @@ async def get_task(task_id: str):
         if task_id not in state.active_tasks:
             raise HTTPException(status_code=404, detail="Task not found")
         return state.active_tasks[task_id]
+
+@app.delete("/tasks")
+async def delete_all_tasks():
+    """Delete all tasks and their connections"""
+    async with state.tasks_lock:
+        state.active_tasks.clear()
+    
+    async with state.connections_lock:
+        state.task_connections.clear()
+    
+    return {"message": "All tasks deleted"}
 
 if __name__ == "__main__":
     import uvicorn

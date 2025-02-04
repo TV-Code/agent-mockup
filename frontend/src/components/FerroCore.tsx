@@ -36,20 +36,14 @@ export function FerroCore({ tasks, activeTaskId }: FerroCoreProps) {
 
   // Calculate system metrics
   const metrics = useMemo(() => {
-    const totalTasks = tasks.length;
-    if (totalTasks === 0) return { progress: 0, activity: 0, distortion: 0, isThinking: false };
-
-    const completedTasks = tasks.filter(t => t.status === 'COMPLETED').length;
-    const processingTasks = tasks.filter(t => t.status === 'PROCESSING').length;
     const activeTask = tasks.find(t => t.id === activeTaskId);
-    
-    const isThinking = activeTask?.status === 'PROCESSING';
-    
+    const isProcessing = activeTask?.status === 'PROCESSING';
+
     return {
-      progress: completedTasks / totalTasks,
-      activity: processingTasks / totalTasks,
-      distortion: (processingTasks * 0.7 + completedTasks * 0.3) / totalTasks,
-      isThinking,
+      progress: 0.35,       // Moderate progress for good base energy
+      activity: 0.45,       // Higher activity for fluid movement
+      distortion: 0.3,      // Moderate distortion for fluid surface
+      isThinking: isProcessing  // Only think when actually processing
     };
   }, [tasks, activeTaskId]);
 
@@ -66,7 +60,7 @@ export function FerroCore({ tasks, activeTaskId }: FerroCoreProps) {
       materialRef.current.uActivity = metrics.activity;
       materialRef.current.uProgress = metrics.progress;
       
-      // Smooth thinking state transition
+      // Simple thinking state transition
       thinkingRef.current += (metrics.isThinking ? 1 : -1) * 0.05;
       thinkingRef.current = Math.max(0, Math.min(1, thinkingRef.current));
       
@@ -75,7 +69,7 @@ export function FerroCore({ tasks, activeTaskId }: FerroCoreProps) {
     }
   
     if (groupRef.current) {
-      // Base rotation
+      // Simple consistent rotation
       groupRef.current.rotation.y += 0.001 + metrics.activity * 0.002;
     }
   });

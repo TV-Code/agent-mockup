@@ -14,6 +14,7 @@ interface LayoutProps {
   onAddTask: () => void;
   onTaskSelect: (taskId: string) => void;
   onTaskStart: (taskId: string, initialMessage: string) => void;
+  onCancelTask: (taskId: string) => void;
   messagesMap: Record<string, Message[]>;
   onSendMessage: (taskId: string, message: string) => void;
   isDarkMode: boolean;
@@ -26,6 +27,7 @@ export function Layout({
   onAddTask, 
   onTaskSelect, 
   onTaskStart,
+  onCancelTask,
   messagesMap,
   onSendMessage,
   isDarkMode,
@@ -93,6 +95,7 @@ export function Layout({
                 activeTaskId={activeTaskId} 
                 tasks={tasks}
                 onTaskStart={onTaskStart}
+                onCancelTask={onCancelTask}
                 messagesMap={messagesMap}
                 onSendMessage={onSendMessage}
               />

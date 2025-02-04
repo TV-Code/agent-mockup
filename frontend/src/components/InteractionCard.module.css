@@ -11,11 +11,7 @@
   width: 100%;
   height: 100%;
   border-radius: 1rem;
-  background: linear-gradient(
-    165deg,
-    rgba(28, 28, 28, 0.4) 0%,
-    rgba(28, 28, 28, 0.3) 100%
-  );
+  background: rgba(28, 28, 28, 0.4);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.05);
@@ -278,6 +274,18 @@
   align-items: center;
   gap: 0.75rem;
   margin-top: auto;
+  transition: all 0.3s ease;
+}
+
+.inputArea.processing {
+  border-color: rgba(255, 160, 122, 0.2);
+  background: rgba(255, 160, 122, 0.05);
+}
+
+.inputArea.completed {
+  border-color: rgba(255, 160, 122, 0.3);
+  background: rgba(255, 160, 122, 0.08);
+  animation: pulseComplete 2s ease-out;
 }
 
 .textarea {
@@ -337,6 +345,32 @@
   cursor: not-allowed;
 }
 
+.cancelButton {
+  background: rgba(255, 86, 86, 0.15);
+  border: 1px solid rgba(255, 86, 86, 0.2);
+  color: rgb(255, 86, 86);
+  cursor: pointer;
+  padding: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  transition: all 0.2s ease;
+  height: 45px;
+  width: 45px;
+  flex-shrink: 0;
+}
+
+.cancelButton:hover:not(:disabled) {
+  background: rgba(255, 86, 86, 0.2);
+  border-color: rgba(255, 86, 86, 0.3);
+}
+
+.cancelButton:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -356,4 +390,19 @@
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.7; }
+}
+
+@keyframes pulseComplete {
+  0% {
+    border-color: rgba(255, 160, 122, 0.3);
+    background: rgba(255, 160, 122, 0.08);
+  }
+  50% {
+    border-color: rgba(255, 160, 122, 0.5);
+    background: rgba(255, 160, 122, 0.15);
+  }
+  100% {
+    border-color: rgba(255, 160, 122, 0.3);
+    background: rgba(255, 160, 122, 0.08);
+  }
 } 

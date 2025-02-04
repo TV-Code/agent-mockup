@@ -10,6 +10,7 @@ interface InteractionCardProps {
   activeTaskId: string | null;
   tasks: Task[];
   onTaskStart?: (taskId: string, initialMessage: string) => void;
+  onCancelTask?: (taskId: string) => void;
   messagesMap: Record<string, Message[]>;
   onSendMessage: (taskId: string, message: string) => void;
 }
@@ -38,12 +39,14 @@ export function InteractionCard({
   activeTaskId, 
   tasks, 
   onTaskStart,
+  onCancelTask,
   messagesMap,
   onSendMessage 
 }: InteractionCardProps) {
   const [message, setMessage] = useState('');
   const [showSparkAnimation, setShowSparkAnimation] = useState(false);
   const [sparkCoords, setSparkCoords] = useState({ startX: 0, startY: 0, endX: 0, endY: 0 });
+  const [completionPulse, setCompletionPulse] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const sendButtonRef = useRef<HTMLButtonElement>(null);
@@ -51,12 +54,22 @@ export function InteractionCard({
   const activeTask = tasks.find(t => t.id === activeTaskId);
   const isActive = activeTaskId !== null;
   const isPending = activeTaskId?.startsWith('pending-');
+  const isProcessing = activeTask?.status === 'PROCESSING';
+  const isCompleted = activeTask?.status === 'COMPLETED';
   
   const currentMessages = activeTaskId ? messagesMap[activeTaskId] || [] : [];
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [currentMessages]);
+
+  useEffect(() => {
+    if (isCompleted) {
+      setCompletionPulse(true);
+      const timer = setTimeout(() => setCompletionPulse(false), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [isCompleted]);
 
   const handleSendMessage = () => {
     if (!message.trim() || !activeTask || !activeTaskId) return;
@@ -211,28 +224,47 @@ export function InteractionCard({
             <div ref={messagesEndRef} />
           </div>
           
-          <div className={styles.inputArea}>
+          <div className={clsx(
+            styles.inputArea,
+            isProcessing && styles.processing,
+            completionPulse && styles.completed
+          )}>
             <textarea 
               ref={textareaRef}
               className={styles.textarea}
-              placeholder={isActive ? 
-                (isPending ? "Type your message to start the task..." : "Type your message...") 
-                : "Select a task to start interaction"}
+              placeholder={
+                isProcessing ? "Task is processing..." :
+                isCompleted ? "Task completed - continue chatting" :
+                isActive ? 
+                  (isPending ? "Type your message to start the task..." : "Type your message...") 
+                  : "Select a task to start interaction"
+              }
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               onKeyDown={handleKeyDown}
-              disabled={!isActive}
+              disabled={!isActive || isProcessing}
             />
-            <motion.button
-              ref={sendButtonRef}
-              className={styles.sendButton}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handleSendMessage}
-              disabled={!isActive || !message.trim()}
-            >
-              <PaperAirplaneIcon className="w-5 h-5" />
-            </motion.button>
+            {isProcessing ? (
+              <motion.button
+                className={styles.cancelButton}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => activeTaskId && onCancelTask?.(activeTaskId)}
+              >
+                <XMarkIcon className="w-5 h-5" />
+              </motion.button>
+            ) : (
+              <motion.button
+                ref={sendButtonRef}
+                className={styles.sendButton}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleSendMessage}
+                disabled={!isActive || !message.trim() || isProcessing}
+              >
+                <PaperAirplaneIcon className="w-5 h-5" />
+              </motion.button>
+            )}
           </div>
         </div>
       </motion.div>
